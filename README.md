@@ -1,4 +1,4 @@
-# FerryLight System: A Comprehensive Briefing
+# The FerryLight System
 
 ## Executive Summary
 
