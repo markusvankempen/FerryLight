@@ -8,6 +8,15 @@ The system is built on a modern, layered architecture featuring a React Progress
 
 ---
 
+## 🎧 Listen to the FerryLight Podcast
+
+Prefer to listen? Here's a podcast overview of the FerryLight system:
+
+![FerryLight Podcast](assets/FerryLightPodCast.mp3)
+*Audio overview of the FerryLight real-time community information system*
+
+---
+
 ## 1. Project Overview and Purpose
 
 FerryLight is a multi-faceted real-time monitoring and information system focused on the Englishtown ↔ Jersey Cove ferry service in Nova Scotia. The project, currently in Beta as version 5.2.5, was created by Markus van Kempen to address the practical challenge faced by the local community: the uncertainty of the ferry's operational status. A service disruption requires a 22-25 minute detour via the St. Ann's Loop, making real-time information highly valuable.
@@ -20,7 +29,18 @@ The system has evolved from a simple status checker into a comprehensive communi
 | **Version** | 5.2.5 (Beta) |
 | **Author** | Markus van Kempen |
 | **Production URL** | https://ferrylight.online |
-| **GitHub Repository** | markusvankempen/FerryLight - code coming soon |
+| **GitHub Repository** | markusvankempen-ai/FerryLight |
+
+### Location & Maps
+
+| Location | Description | Map Link |
+|----------|-------------|----------|
+| **Englishtown Ferry** | Ferry crossing at Englishtown/Jersey Cove | [View on Google Maps](https://www.google.com/maps/place/Englishtown+Ferry/@46.2881914,-60.5836724,12.69z) |
+| **St. Ann's Loop** | Alternate 25-minute route when ferry is down | [View Alternate Route](https://www.google.com/maps/dir/46.3477059,-60.5361775/46.2082839,-60.5940043/@46.2080559,-60.5943418,12z) |
+
+**GPS Coordinates:**
+- Englishtown Terminal: 46.2889°N, 60.5400°W
+- Jersey Cove Terminal: 46.2882°N, 60.5837°W
 
 ---
 
@@ -46,6 +66,56 @@ The FerryLight system offers a wide array of features that extend beyond basic f
 ## 3. System Architecture and Technology Stack
 
 FerryLight is built on a layered architecture designed for real-time data flow, resilience, and scalability. The architecture can be broken down into four primary stages: data ingestion, integration/processing, backend/persistence, and client presentation.
+
+![FerryLight System Overview](images/FerryLighSystemOverview.png)
+*System overview showing key features and the "Signal to Screen" data flow*
+
+### 3.0. System Architecture Diagram
+
+```mermaid
+graph TB
+    subgraph DS[Data Sources]
+        AIS[AIS Radio RTL-SDR]
+        WEATHER[Weather Station]
+        FERRY_API[511 Ferry API]
+        OCEARCH[OCEARCH API]
+        GCAL[Google Calendar]
+    end
+
+    subgraph PL[Processing Layer]
+        NODERED[Node-RED]
+        POSTGRES[(PostgreSQL)]
+        MQTT[MQTT Broker]
+    end
+
+    subgraph AL[Application Layer]
+        SERVER[Express Server]
+        REACT[React PWA]
+        SW[Service Worker]
+    end
+
+    subgraph OD[Output Devices]
+        WLED[WLED LED Display]
+        MOBILE[Mobile and Desktop]
+    end
+
+    AIS --> NODERED
+    WEATHER --> NODERED
+    FERRY_API --> SERVER
+    OCEARCH --> SERVER
+    GCAL --> NODERED
+    
+    NODERED --> POSTGRES
+    NODERED --> MQTT
+    NODERED --> SERVER
+    
+    SERVER --> REACT
+    REACT --> SW
+    SW --> MOBILE
+    
+    MQTT --> WLED
+    SERVER --> WLED
+```
 
 ### 3.1. Architectural Flow: From Signal to Screen
 
@@ -108,6 +178,31 @@ Serves as the system's memory, providing a structured repository for both epheme
 | Reverse Proxy | Traefik |
 | PWA | Service Workers, Web App Manifest |
 
+### 3.6. MQTT Topic Structure
+
+Real-time event distribution for IoT devices uses the following topic hierarchy:
+
+```
+MQTT Topics:
+├── ferrylight/status       → Ferry operational status
+├── ferrylight/position     → Current GPS position
+├── ferrylight/wled/text    → LED display text
+├── ferrylight/weather      → Weather updates
+└── ferrylight/alerts       → System alerts
+```
+
+### 3.7. Data Flow Summary
+
+```
+1. AIS Receiver → Node-RED → PostgreSQL → API → React App
+2. Weather Station → Node-RED → API → React App
+3. Ferry Service API → Server → React App
+4. OCEARCH API → Server → FerryMap Component
+5. Node-RED → MQTT → WLED Display
+6. Server → Web Push → Service Worker → Mobile Notification
+7. Google Calendar → Node-RED → Events API → Events Component
+```
+
 ---
 
 ## 4. Key Technical Implementations
@@ -115,6 +210,27 @@ Serves as the system's memory, providing a structured repository for both epheme
 ### 4.1. Push Notification System
 
 The system uses the Web Push API with VAPID authentication. A server-side monitoring loop checks for status changes every two minutes and sends deduplicated notifications.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant PWA
+    participant SW as ServiceWorker
+    participant Server
+    participant DB as Database
+
+    User->>PWA: Enable Notifications
+    PWA->>SW: Register Push
+    SW->>Server: Subscribe
+    Server->>DB: Store Subscription
+
+    Note over Server: Background Monitoring
+
+    Server->>Server: Detect Status Change
+    Server->>SW: Push Message
+    SW->>User: Show Notification
+    User->>PWA: Click to Open
+```
 
 | Category | Notification Types | Priority |
 |----------|-------------------|----------|
@@ -193,4 +309,221 @@ To improve the accuracy of wait time estimations, a system of PAX counters is be
 
 ---
 
+## 7. LED Setup Application
+
+A dedicated web application is provided for configuring the WLED LED displays.
+
+**Access URL**: [https://led-setup.ferrylight.online](https://led-setup.ferrylight.online)
+
+### Setup Process
+
+1. **Power On** the FerryLight LED device
+2. **Connect** to the "FerryLight" WiFi network broadcast by the device
+3. **Open** the setup app at the URL above (or `http://4.3.2.1` when directly connected)
+4. **Enter** your home WiFi credentials (SSID and Password)
+5. **Configure** and the device will restart and connect to your network
+
+### LED Display in Action
+
+The LED matrix display shows ferry status, destination, and wait times:
+
+![LED Display Test Pattern](images/led_display_test.jpg)
+*LED display showing test pattern in setup mode*
+
+![LED Showing Jersey Destination](images/led_display_jersey.jpg)
+*Display showing "Jersey" - indicating ferry heading to Jersey Cove*
+
+![LED Showing Englishtown](images/led_display_englishtown.jpg)
+*Display showing "Engli..." - scrolling ferry heading to Englishtown*
+
+### LED Display Video Demo
+
+![LED Display in Action](images/led_display_demo.mp4)
+*Video demonstration of the FerryLight LED display showing real-time ferry status updates*
+
+---
+
+## 8. Email Notification System
+
+The system includes a Docker Mail Server for transactional emails.
+
+### Email Types
+
+| Type | Recipients | Purpose |
+|------|-----------|---------|
+| **Order Confirmation** | Customers | Purchase confirmation with order details |
+| **Admin Alerts** | admin@ferrylight.online | New order notifications |
+| **Weather Alerts** | Subscribers | Critical weather warnings |
+
+### Technical Details
+
+- **Mail Server**: Docker Mail Server container
+- **Template Engine**: Plain text with templating
+- **Error Handling**: Graceful degradation - orders continue if email fails
+
+---
+
+## 9. Visual Gallery
+
+### Road Signage
+
+![Ferry In Service Sign on NS-312](images/FerryInServiceSign.png)
+*Ferry status sign on NS-312 at the St. Ann's Loop junction, just past St Ann's Church*
+
+This "Ferry NOT Operating When Flashing" sign is located approximately 10 minutes from the ferry terminal, positioned at the junction leading to the St. Ann's Loop. The sign provides early warning to drivers approaching from Cape Breton Highlands: when the amber light is flashing, the ferry is out of service and drivers should take the alternative 25-minute route via the St. Ann's Loop. This helps prevent unnecessary trips to the ferry terminal only to discover the service is suspended.
+
+---
+
+### The Ferry
+
+![Ferry on the Water](images/PictureOftheFerryOnTheFerry.jpg)
+*The Torquil MacLean ferry crossing St. Ann's Bay*
+
+![Boarding at Englishtown](images/BoardingTheFerryonEnglishtownSide.jpg)
+*Vehicles boarding the ferry at Englishtown terminal*
+
+![Ferry Docking at Jersey Cove](images/FerryDockingonJerseyCoveSide.jpg)
+*Ferry approaching the Jersey Cove dock*
+
+### Web Application Screenshots
+
+![Ferry Page](images/ferry_page.png)
+*Main ferry status page showing real-time position and status*
+
+![Weather Page](images/weather_page.png)
+*Weather page with current conditions and alerts*
+
+![Events Page](images/events_page.png)
+*Community events calendar with garbage schedules*
+
+![Map with Ships and Aircraft](images/FerryLightShipsAircraftsSeaAnimals.png)
+*Interactive map showing vessels, aircraft, and marine animals*
+
+---
+
+## Appendix A: System Architecture Diagram
+
+```mermaid
+graph TB
+    subgraph DS[Data Sources]
+        AIS[AIS Radio RTL-SDR]
+        WEATHER[Weather Station]
+        FERRY[511 Ferry API]
+        GCAL[Google Calendar]
+        OCEARCH[OCEARCH Shark API]
+    end
+
+    subgraph NR[Node-RED Integration Hub]
+        PARSER[AIS Parser and Router]
+        AGGREGATOR[Weather Aggregator]
+        SCHEDULER[Event Scheduler]
+        MQTT_BRIDGE[MQTT Bridge]
+    end
+
+    subgraph EX[Express.js Backend Server]
+        API[API Gateway]
+        PUSH[Push Manager]
+        WLED_PROXY[WLED Proxy]
+        AUTH[Auth Layer]
+    end
+
+    subgraph OUT[Clients and Outputs]
+        PWA[React PWA]
+        WLED[WLED LED Display]
+        DB[PostgreSQL Database]
+    end
+
+    AIS --> PARSER
+    WEATHER --> AGGREGATOR
+    FERRY --> API
+    GCAL --> SCHEDULER
+    OCEARCH --> API
+
+    PARSER --> API
+    AGGREGATOR --> API
+    SCHEDULER --> API
+    MQTT_BRIDGE --> WLED
+
+    API --> PWA
+    PUSH --> PWA
+    WLED_PROXY --> WLED
+    API --> DB
+```
+
+---
+
+## Appendix B: Data Flow Sequence
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant PWA as React PWA
+    participant RTL as RTL-SDR
+    participant EC as Env Canada
+    participant NR as Node-RED
+    participant Server
+    participant WLED
+
+    Note over User,PWA: User Flow
+    User->>PWA: Opens App
+    PWA->>Server: GET /api/ferry
+    Server-->>PWA: JSON Response
+
+    Note over RTL,NR: AIS Flow
+    RTL->>NR: AIS Signal Received
+    NR->>NR: Parse and Process
+    NR->>Server: Send AIS Data
+
+    Note over EC,Server: Weather Flow
+    EC->>NR: Weather Alert Issued
+    NR->>Server: Forward Alert
+
+    Note over Server,WLED: Output Flow
+    Server->>PWA: Push to All Users
+    Server->>WLED: Update LED Display
+```
+
+---
+
+## Appendix C: Docker Service Topology
+
+| Service | Purpose | Image |
+|---------|---------|-------|
+| `ferrylight-app` | React PWA + Express API | Custom build |
+| `postgres` | PostgreSQL database | postgres:15 |
+| `nodered` | Integration flows | nodered/node-red |
+| `traefik` | Reverse proxy + SSL | traefik:v2 |
+| `mailserver` | Email service | docker-mailserver |
+| `led-setup` | LED configuration app | Custom build |
+
+---
+
+## Quick Links
+
+### 🚢 Main Application Pages
+
+| Page | Description | Link |
+|------|-------------|------|
+| **Ferry Status** | Real-time ferry tracking and wait times | [ferrylight.online/ferry](https://ferrylight.online/ferry) |
+| **Weather** | Current conditions and Environment Canada alerts | [ferrylight.online/weather](https://ferrylight.online/weather) |
+| **Events** | Community calendar and garbage schedules | [ferrylight.online/events](https://ferrylight.online/events) |
+| **About** | Project information and settings | [ferrylight.online/about](https://ferrylight.online/about) |
+
+### 📚 Information & History
+
+| Page | Description | Link |
+|------|-------------|------|
+| **Ferry History** | The fascinating history of the Englishtown Ferry | [Englishtown Ferry History](https://ferrylight.online/englishtown-ferry-history.html) |
+| **Alternate Route** | Guide to the St. Ann's Loop alternate route | [Alternate Route Guide](https://ferrylight.online/alternate-route-englishtown-ferry.html) |
+| **Ferry FAQ** | Frequently asked questions about the ferry | [Ferry FAQ](https://ferrylight.online/englishtown-ferry-faq.html) |
+| **General FAQ** | General questions about FerryLight | [General FAQ](https://ferrylight.online/faq) |
+
+---
+
 *FerryLight - Real-Time Ferry Status & Community Information for Cape Breton*
+
+**Website**: [https://ferrylight.online](https://ferrylight.online)  
+**LED Setup**: [https://led-setup.ferrylight.online](https://led-setup.ferrylight.online)  
+**Author**: Markus van Kempen  
+**Contact**: markus.van.kempen@gmail.com
+
