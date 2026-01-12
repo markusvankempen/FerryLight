@@ -1,4 +1,4 @@
-# The FerryLight System
+# FerryLight System: A Comprehensive Briefing
 
 ## Executive Summary
 
@@ -12,21 +12,25 @@ The system is built on a modern, layered architecture featuring a React Progress
 
 Prefer to listen? Here's a podcast overview of the FerryLight system:
 
-![FerryLight Podcast](assets/FerryLightPodCast.mp3)
+<audio controls style="width: 100%; max-width: 500px;">
+  <source src="assets/FerryLightDeepDivePodcastWithMarkusv1.mp3" type="audio/mpeg">
+  Your browser does not support the audio element.
+</audio>
+
 *Audio overview of the FerryLight real-time community information system*
 
 ---
 
 ## 1. Project Overview and Purpose
 
-FerryLight is a multi-faceted real-time monitoring and information system focused on the Englishtown ↔ Jersey Cove ferry service in Nova Scotia. The project, currently in Beta as version 5.2.5, was created by Markus van Kempen to address the practical challenge faced by the local community: the uncertainty of the ferry's operational status. A service disruption requires a 22-25 minute detour via the St. Ann's Loop, making real-time information highly valuable.
+FerryLight is a multi-faceted real-time monitoring and information system focused on the Englishtown ↔ Jersey Cove ferry service in Nova Scotia. The project, currently in Beta as version 5.2.6, was created by Markus van Kempen to address the practical challenge faced by the local community: the uncertainty of the ferry's operational status. A service disruption requires a 22-25 minute detour via the St. Ann's Loop, making real-time information highly valuable.
 
 The system has evolved from a simple status checker into a comprehensive community resource, combining official government data with information from a custom-built DIY weather station and local sensors.
 
 | Property | Value |
 |----------|-------|
 | **Project Name** | FerryLight |
-| **Version** | 5.2.5 (Beta) |
+| **Version** | 5.2.6 (Beta) |
 | **Author** | Markus van Kempen |
 | **Production URL** | https://ferrylight.online |
 | **GitHub Repository** | markusvankempen-ai/FerryLight |
@@ -58,8 +62,9 @@ The FerryLight system offers a wide array of features that extend beyond basic f
 | 🔔 **Push Notifications** | A smart, multi-category notification system sends alerts for critical events like ferry service suspensions/resumptions, new weather warnings, and new community announcements. |
 | 🦈 **Maritime Environment Monitoring** | The system tracks all AIS-equipped vessels in the area, including tour boats and fishing vessels. It also integrates with the OCEARCH API to display the last known positions of tagged marine animals, primarily sharks. |
 | ✈️ **Aircraft Tracking** | As an additional feature, the application tracks and displays planes in the St. Ann's Bay area using ADS-B (Automatic Dependent Surveillance–Broadcast) data. |
-| 🎵 **Cape Breton Music** | A "gimmick" feature offers a selection of traditional Celtic and Fiddler tunes for users to listen to while waiting in the ferry lineup. |
-| 🏪 **Local Business Directory** | Provides a directory of local shops and services in the Northshore area, categorized by type (restaurants, accommodations, attractions, etc.). |
+| 🎵 **Cape Breton Music** | A fun feature for users waiting in the ferry lineup! The app includes a "Play a Tune" button that offers a curated selection of traditional Cape Breton Celtic fiddle tunes. Perfect for enjoying Nova Scotia culture while you wait for your crossing. |
+| 🛍️ **FerryLight Shop** | A new e-commerce section allowing users to purchase FerryLight-branded merchandise like t-shirts, mugs, and caps. Features an integrated shopping cart, calculated shipping, and secure Stripe payments. |
+| 🏰 **Attractions Directory** | Provides a directory of local attractions, shops, and services in the Northshore area to help visitors discover the region. |
 
 ---
 
@@ -72,50 +77,8 @@ FerryLight is built on a layered architecture designed for real-time data flow, 
 
 ### 3.0. System Architecture Diagram
 
-```mermaid
-graph TB
-    subgraph DS[Data Sources]
-        AIS[AIS Radio RTL-SDR]
-        WEATHER[Weather Station]
-        FERRY_API[511 Ferry API]
-        OCEARCH[OCEARCH API]
-        GCAL[Google Calendar]
-    end
-
-    subgraph PL[Processing Layer]
-        NODERED[Node-RED]
-        POSTGRES[(PostgreSQL)]
-        MQTT[MQTT Broker]
-    end
-
-    subgraph AL[Application Layer]
-        SERVER[Express Server]
-        REACT[React PWA]
-        SW[Service Worker]
-    end
-
-    subgraph OD[Output Devices]
-        WLED[WLED LED Display]
-        MOBILE[Mobile and Desktop]
-    end
-
-    AIS --> NODERED
-    WEATHER --> NODERED
-    FERRY_API --> SERVER
-    OCEARCH --> SERVER
-    GCAL --> NODERED
-    
-    NODERED --> POSTGRES
-    NODERED --> MQTT
-    NODERED --> SERVER
-    
-    SERVER --> REACT
-    REACT --> SW
-    SW --> MOBILE
-    
-    MQTT --> WLED
-    SERVER --> WLED
-```
+![System Architecture Diagram](images/system_architecture_diagram.png)
+*FerryLight system architecture showing data flow from sources through processing to clients*
 
 ### 3.1. Architectural Flow: From Signal to Screen
 
@@ -196,11 +159,12 @@ MQTT Topics:
 ```
 1. AIS Receiver → Node-RED → PostgreSQL → API → React App
 2. Weather Station → Node-RED → API → React App
-3. Ferry Service API → Server → React App
-4. OCEARCH API → Server → FerryMap Component
-5. Node-RED → MQTT → WLED Display
-6. Server → Web Push → Service Worker → Mobile Notification
-7. Google Calendar → Node-RED → Events API → Events Component
+3. Ferry Service API → Node-RED → API → React App
+4. OCEARCH API → Node-RED → API → FerryMap Component
+5. PAX Counter → LoRaWAN Gateway → MQTT → Node-RED → API
+6. Node-RED → MQTT → WLED Display
+7. Server → Web Push → Service Worker → Mobile Notification
+8. Google Calendar → Node-RED → Events API → Events Component
 ```
 
 ---
@@ -209,28 +173,10 @@ MQTT Topics:
 
 ### 4.1. Push Notification System
 
-The system uses the Web Push API with VAPID authentication. A server-side monitoring loop checks for status changes every two minutes and sends deduplicated notifications.
+The system uses the Web Push API with VAPID authentication. A server-side monitoring loop checks for status changes every two minutes and sends deduplicated notifications. Recent updates (v5.2.6) improved reliability by ensuring notifications link correctly to the live site and prevented duplicate announcements.
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant PWA
-    participant SW as ServiceWorker
-    participant Server
-    participant DB as Database
-
-    User->>PWA: Enable Notifications
-    PWA->>SW: Register Push
-    SW->>Server: Subscribe
-    Server->>DB: Store Subscription
-
-    Note over Server: Background Monitoring
-
-    Server->>Server: Detect Status Change
-    Server->>SW: Push Message
-    SW->>User: Show Notification
-    User->>PWA: Click to Open
-```
+![Push Notification Flow](images/push_notification_diagram.png)
+*Push notification system flow from user subscription to notification delivery*
 
 | Category | Notification Types | Priority |
 |----------|-------------------|----------|
@@ -260,6 +206,10 @@ Ferry service is automatically flagged for cancellation under specific condition
 - Visibility < 1 km
 - Wave height > 3 meters
 - Presence of ice conditions
+
+#### SEO & Sitelinks
+
+To improve discoverability, the system now implements comprehensive Schema.org structured data (JSON-LD), including `WebSite` and `SiteNavigationElement`. This allows search engines like Google to display rich Sitelinks, helping users navigate directly to key pages like Weather or Status.
 
 #### Smart Busyness Algorithm
 
@@ -301,11 +251,14 @@ The entire system is containerized for resilience and ease of management, deploy
 
 ### 6.2. Future Development: PAX Counters
 
+> **Note:** FerryLight is currently in Beta (v5.2.6). The PAX Counter system was successfully tested in summer 2025 and is planned for full deployment in summer 2026.
+
 To improve the accuracy of wait time estimations, a system of PAX counters is being developed.
 
 - **Problem**: The ferry has a limited capacity of 15 cars. During peak tourist season, lineups can be long, and AIS data alone cannot determine the number of waiting vehicles.
 - **Solution**: PAX counters will be deployed at each port to count Bluetooth and WiFi signals from devices in waiting cars, providing an indication of how busy each port is.
 - **Technology**: Due to a lack of power and internet at the ports, the counters will transmit data via LoRaWAN. This data will be combined with AIS trip counts to calculate more precise wait times.
+- **Status**: Initial testing completed in 2025. Full implementation scheduled for summer 2026.
 
 ---
 
@@ -338,7 +291,11 @@ The LED matrix display shows ferry status, destination, and wait times:
 
 ### LED Display Video Demo
 
-![LED Display in Action](images/led_display_demo.mp4)
+<video controls width="100%" style="max-width: 600px;">
+  <source src="images/led_display_demo.mp4" type="video/mp4">
+  Your browser does not support the video element.
+</video>
+
 *Video demonstration of the FerryLight LED display showing real-time ferry status updates*
 
 ---
@@ -399,89 +356,24 @@ This "Ferry NOT Operating When Flashing" sign is located approximately 10 minute
 ![Map with Ships and Aircraft](images/FerryLightShipsAircraftsSeaAnimals.png)
 *Interactive map showing vessels, aircraft, and marine animals*
 
+### FerryLight Shop
+
+![FerryLight Shop](images/PurchaseFerryLight.png)
+*New online shop offering FerryLight branded merchandise with secure checkout*
+
 ---
 
 ## Appendix A: System Architecture Diagram
 
-```mermaid
-graph TB
-    subgraph DS[Data Sources]
-        AIS[AIS Radio RTL-SDR]
-        WEATHER[Weather Station]
-        FERRY[511 Ferry API]
-        GCAL[Google Calendar]
-        OCEARCH[OCEARCH Shark API]
-    end
-
-    subgraph NR[Node-RED Integration Hub]
-        PARSER[AIS Parser and Router]
-        AGGREGATOR[Weather Aggregator]
-        SCHEDULER[Event Scheduler]
-        MQTT_BRIDGE[MQTT Bridge]
-    end
-
-    subgraph EX[Express.js Backend Server]
-        API[API Gateway]
-        PUSH[Push Manager]
-        WLED_PROXY[WLED Proxy]
-        AUTH[Auth Layer]
-    end
-
-    subgraph OUT[Clients and Outputs]
-        PWA[React PWA]
-        WLED[WLED LED Display]
-        DB[PostgreSQL Database]
-    end
-
-    AIS --> PARSER
-    WEATHER --> AGGREGATOR
-    FERRY --> API
-    GCAL --> SCHEDULER
-    OCEARCH --> API
-
-    PARSER --> API
-    AGGREGATOR --> API
-    SCHEDULER --> API
-    MQTT_BRIDGE --> WLED
-
-    API --> PWA
-    PUSH --> PWA
-    WLED_PROXY --> WLED
-    API --> DB
-```
+![System Architecture Diagram](images/system_architecture_diagram.png)
+*Detailed system architecture showing all components and data flow*
 
 ---
 
 ## Appendix B: Data Flow Sequence
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant PWA as React PWA
-    participant RTL as RTL-SDR
-    participant EC as Env Canada
-    participant NR as Node-RED
-    participant Server
-    participant WLED
-
-    Note over User,PWA: User Flow
-    User->>PWA: Opens App
-    PWA->>Server: GET /api/ferry
-    Server-->>PWA: JSON Response
-
-    Note over RTL,NR: AIS Flow
-    RTL->>NR: AIS Signal Received
-    NR->>NR: Parse and Process
-    NR->>Server: Send AIS Data
-
-    Note over EC,Server: Weather Flow
-    EC->>NR: Weather Alert Issued
-    NR->>Server: Forward Alert
-
-    Note over Server,WLED: Output Flow
-    Server->>PWA: Push to All Users
-    Server->>WLED: Update LED Display
-```
+![Data Flow Sequence](images/data_flow_diagram.png)
+*Data flow sequence showing user, AIS, weather, and output flows*
 
 ---
 
@@ -517,6 +409,17 @@ sequenceDiagram
 | **Alternate Route** | Guide to the St. Ann's Loop alternate route | [Alternate Route Guide](https://ferrylight.online/alternate-route-englishtown-ferry.html) |
 | **Ferry FAQ** | Frequently asked questions about the ferry | [Ferry FAQ](https://ferrylight.online/englishtown-ferry-faq.html) |
 | **General FAQ** | General questions about FerryLight | [General FAQ](https://ferrylight.online/faq) |
+
+---
+
+## 🛒 Support the Project
+
+Want your own FerryLight LED Display? You can order one to have ferry status right in your home!
+
+| Option | Description | Link |
+|--------|-------------|------|
+| **Order LED Display** | Get your own FerryLight LED display for real-time ferry status | [Purchase](https://ferrylight.online/purchase) |
+| **Buy Me a Coffee** | Support the developer and help keep FerryLight running | [Buy a Coffee ☕](https://ferrylight.online/purchase) |
 
 ---
 
