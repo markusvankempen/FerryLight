@@ -17,7 +17,7 @@ Prefer to listen? Here's a podcast overview of the FerryLight system:
   Your browser does not support the audio element.
 </audio>
 
-*Audio overview of the FerryLight real-time community information system*
+*Deep Dive Podcast: Markus discusses the FerryLight real-time community information system*
 
 ---
 
