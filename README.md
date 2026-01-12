@@ -12,10 +12,7 @@ The system is built on a modern, layered architecture featuring a React Progress
 
 Prefer to listen? Here's a podcast overview of the FerryLight system:
 
-<audio controls style="width: 100%; max-width: 500px;">
-  <source src="assets/FerryLightDeepDivePodcastWithMarkusv1.mp3" type="audio/mpeg">
-  Your browser does not support the audio element.
-</audio>
+🎧 **[Listen to the Deep Dive Podcast with Markus](assets/FerryLightDeepDivePodcastWithMarkusv1.mp3)** *(Click to download/play)*
 
 *Deep Dive Podcast: Markus discusses the FerryLight real-time community information system*
 
