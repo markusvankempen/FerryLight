@@ -30,7 +30,7 @@ The system has evolved from a simple status checker into a comprehensive communi
 | **Version** | 5.2.6 (Beta) |
 | **Author** | Markus van Kempen |
 | **Production URL** | https://ferrylight.online |
-| **GitHub Repository** | markusvankempen-ai/FerryLight |
+| **GitHub Repository** |coming soon |
 
 ### Location & Maps
 
